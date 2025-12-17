@@ -1,0 +1,13 @@
+name: NBS_finance
+title: NBS_finance
+username: visualized-data
+account: visualized-data
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 16054558
+bundleId: 11174366
+url: https://visualized-data.shinyapps.io/NBS_finance/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: econ_appraisal.R|ecosystems_sunburst.R|instruments_sunburst.R|server.R|ui.R

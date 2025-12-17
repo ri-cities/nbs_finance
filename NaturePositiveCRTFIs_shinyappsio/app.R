@@ -1,0 +1,532 @@
+#
+# This is a Shiny web application. You can run the application by clicking
+# the 'Run App' button above.
+# Find out more about building applications with Shiny here: https://shiny.posit.co/
+
+
+# # install & load packages
+# packages <- c('shiny')
+# 
+# ## Function to install packages only if they are not already installed
+# install_if_not_installed <- function(packages) {
+#   for (package in packages) {
+#     if (!require(package, character.only = TRUE, quietly = TRUE)) {
+#       install.packages(package, dependencies = TRUE)
+#       library(package, character.only = TRUE)
+#     }
+#   }
+# }
+# 
+# ## Call the function with your list of packages
+# install_if_not_installed(packages)
+
+# Define credentials for login with password 
+credentials <- data.frame(
+  user = c("reviewer"),
+  password = c("SystematicReview!"),
+  stringsAsFactors = FALSE
+)
+
+# A. UI  ##################################################################
+# PASSWORD-PROTECTED UI 
+## Define UI for application: 
+## Name navbarPage to app_ui (as password page is wrapped around it):
+ui <- 
+  # Add these lines for password
+  # secure_app(head_auth = tags$script(inactivity),
+  #            fluidPage(
+                   
+                # Classic app without password
+                navbarPage("Nature-positive climate risk transfer & financing instruments", id = "main",
+                 tabPanel("Map", 
+                          sidebarLayout(
+                            sidebarPanel(
+                              selectInput("geo_scale", "Select geographic scale:",
+                                          choices = c("local (city, neighborhood)",
+                                                      "subnational (province, district)",
+                                                      "landscape (e.g. river basin, coastline)",
+                                                      "national", 
+                                                      "supranational"),
+                                          selected = "local (city, neighborhood)"),
+                              width = 3
+                            ),
+                            mainPanel(
+                              # Text above map
+                              h4("Inventory of nature-positive climate risk transfer and financing instruments"), 
+                              p("This interactive map displays pojects across different geographic scales. 
+                          Select a geographic scale on the left to explore the projects."),
+                              leaflet::leafletOutput("inventorymap"
+                                                     , height = 1000
+                                                     ),
+                              width = 9
+                            )
+                          )
+                 ),
+                 
+                 # tabPanel("Data", DT::dataTableOutput("data")),
+                 # include filter option
+                 # tabPanel("Financial instruments", 
+                 #          h4("Nature-positive climate risk transfer and financing instruments (CRTFIs) by instrument category"), 
+                 #          p("The panel presents the distribution of nature-positive CRTFI (outer circle), categorized by instrument type (inner circle). The share of each instrument in the outer circle reflects its prevalence in the instrument category. One project can involve multiple CRTFIs. The same project may be counted multiple times if it appears in multiple publications. Sample size: projects in academic publications (n = 104) and non-academic publications (n = 209)."), 
+                 #          plotly::plotlyOutput(outputID="instruments_sunburst"
+                 #                       # , height = "800px"
+                 #                       )), 
+                 # tabPanel("Ecosystems", 
+                 #          h4("Ecosystem types by ecosystem category"), 
+                 #          p("The panel illustrates the distribution of ecosystem types supported by nature-positive climate risk transfer and financing instruments (outer circle), categorized by broader ecosystem categories (inner circle), that benefit from a nature-positive climate risk transfer and financing instrument identified in the review. One project can support multiple ecosystems. The same project may be counted multiple times if it appears in multiple publications. Sample size: projects in academic publications (n = 104) and non-academic publications (n = 209)."), 
+                 #          plotly::plotlyOutput(outputID="ecosystems_sunburst"
+                 #                       # , height = "800px"
+                 #                       )), 
+                 # insert Figures Panel
+                 # include filter option
+                 tabPanel("Information", includeMarkdown("readme.md")), 
+                 # tabPanel("Status", textOutput("status"))
+)
+#)
+#) # add parenthesis for password
+
+
+# B. SERVER: CREATE APP CONTENT ################################################
+
+## 1. Create map ####
+
+# Get level-1 administrative boundaries (states/provinces)
+# library(geodata)
+# library(terra)
+# library(sf)
+# library(dplyr)
+
+
+# Get level-1 administrative boundaries (states/provinces)
+usa_adm1 <- geodata::gadm("USA", level = 1, path = tempdir()) |> sf::st_as_sf()
+china_adm1 <- geodata::gadm("CHN", level = 1, path = tempdir()) |> sf::st_as_sf()
+mexico_adm1 <- geodata::gadm("MEX", level = 1, path = tempdir()) |> sf::st_as_sf()
+nicaragua_adm1 <- geodata::gadm("NIC", level = 1, path = tempdir()) |> sf::st_as_sf()
+philippines_adm1 <- geodata::gadm("PHL", level = 1, path = tempdir()) |> sf::st_as_sf()
+
+# Combine all
+subnat_shapes_all <- dplyr::bind_rows(
+  usa_adm1 |> dplyr::mutate(country = "United States of America"),
+  china_adm1 |> dplyr::mutate(country = "China"),
+  mexico_adm1 |> dplyr::mutate(country = "Mexico"),
+  nicaragua_adm1 |> dplyr::mutate(country = "Nicaragua"),
+  philippines_adm1 |> dplyr::mutate(country = "Philippines")
+)
+
+#View(subnat_shapes_all)
+
+# load world shapefile for country polygons
+world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
+
+# Define server logic 
+server <- 
+  # shinyServer(
+    function(input, output, session) { # first line without password
+  
+  ## START OF SECTION FOR PASSWORD ## 
+  # function(input, output, session) {
+  #   
+  #   result_auth <- secure_server(check_credentials = check_credentials(credentials))
+  #   
+  #   output$res_auth <- renderPrint({
+  #     reactiveValuesToList(result_auth)
+  #   })
+  
+  ## END OF SECTION FOR PASSWORD ## 
+  
+  # --- prepare popup content once ---
+  inventory_short <- inventory_short %>%
+    dplyr::mutate(cntnt = paste0(
+      '<strong>Project: </strong>', project_name,
+      '<br><strong>Location: </strong>', location_label,
+      '<br><strong>Ecosystem(s): </strong>', ecos_all,
+      '<br><strong>Instrument: </strong>', finance_model3
+    ))
+  
+  # --- Reactive dataset filtered by geographic scale ---
+  filtered_data <- reactive({
+    req(input$geo_scale)
+    inventory_short %>%
+      filter(geographic_scale == input$geo_scale)
+  })
+  
+  # --- Leaflet rendering ---
+  output$inventorymap <- renderLeaflet({
+    
+    req(filtered_data())
+    
+    scale_choice <- input$geo_scale
+    df <- filtered_data()
+    
+    leaflet() %>% addTiles() -> m
+    
+    ## 1.1 Case 1: point-based scales #####
+    if (scale_choice %in% c("local (city, neighborhood)",
+                            # "subnational (province, district)",
+                            "landscape (e.g. river basin, coastline)")) {
+      
+      m <- m %>%
+        addCircleMarkers(
+          data = df,
+          lng = ~longitude, lat = ~latitude,
+          popup = ~cntnt,
+          radius = 5, color = "darkblue", fillOpacity = 0.7
+        )
+    }
+    
+    ## 1.2 Case 2: national polygons #####
+    if (scale_choice == "national") {
+      
+      # --- Prepare national inventory data ---
+      inventory_national <- inventory_short %>%
+        filter(geographic_scale == "national") %>%
+        select(country, project_name, ecos_all, finance_model3) %>%
+        arrange(country) %>%
+        group_by(country) %>%
+        dplyr::mutate(
+          proj_number = row_number(),
+          total_projects = n(),
+          # Add country header only for the first project
+          country_header = ifelse(proj_number == 1,
+                                  paste0("<u><strong>", country, ": ", total_projects, 
+                                         ifelse(total_projects == 1, " project", " projects"),
+                                         "</strong></u><br><br>"),
+                                  "")) %>%
+        ungroup() %>%
+        dplyr::mutate(
+          proj_popup = paste0(
+            country_header,               # appears only once per country
+            "<strong>", proj_number, ") ", project_name, ":</strong><br>",
+            # "<strong>Location: </strong>", location_label, "<br>", # optional
+            "<em>Ecosystem(s): </em>", ecos_all, "<br>",
+            "<em>Instrument: </em>", finance_model3, "<br><br>"
+          )
+        )
+      
+      # --- Collapse all projects per country into a single string ---
+      popup_per_country <- inventory_national %>%
+        group_by(country) %>%
+        summarise(cntnt = paste0(proj_popup, collapse = ""), .groups = "drop")
+      
+      popup_per_country <- inventory_national %>%
+        group_by(country) %>%
+        summarise(cntnt = paste0(proj_popup, collapse = ""), .groups = "drop")
+      
+      # --- Count projects per country ---
+      project_counts <- inventory_national %>%
+        group_by(country) %>%
+        summarise(freq = n(), .groups = "drop")
+      
+      # --- Join with world polygons ---
+      world_data <- world %>%
+        left_join(project_counts, by = c("name" = "country")) %>%
+        left_join(popup_per_country, by = c("name" = "country")) %>%
+        dplyr::mutate(
+          freq = ifelse(is.na(freq), 0, freq),
+          cntnt = ifelse(is.na(cntnt), "<em>No project</em>", cntnt)
+        )
+      
+      # pal <- colorBin("Blues", domain = world_data$freq, bins = c(0, 1, 2, 5, 10, 20))
+      # Define palette with custom bins
+      # Define bins and matching palette
+      legend_labels <- c("0", "1", "2–5", "6–8")
+      
+      pal <- colorBin(
+        palette = c("lightgrey", "#A8DDB5", "#2B8CBE", "#08589E"),
+        domain  = world_data$freq,
+        bins    = c(0, 1, 2, 6, 9),
+        right   = FALSE
+      )
+      
+      # Add polygons and legend
+      m <- m %>%
+        addPolygons(
+          data = world_data,
+          fillColor = ~pal(freq),
+          color = "white", weight = 1, opacity = 1, fillOpacity = 0.7,
+          popup = ~cntnt
+        ) %>%
+        addLegend(
+          pal = pal,
+          values = world_data$freq,
+          title = "Projects per country",
+          labFormat = function(type, cuts, p) { legend_labels },
+          opacity = 1
+        )
+    }
+    
+    # m
+    
+    ## 1.3 Case 3: subnational polygons #####
+    if (scale_choice == "subnational (province, district)") {
+      
+      library(dplyr)
+      library(leaflet)
+      library(sf)
+      library(tidyr)
+      
+      # --- Prepare inventory_short ---
+      inventory_subnat <- inventory_short %>%
+        filter(geographic_scale == "subnational (province, district)") %>%
+        # Split Nicaragua multiple departments into separate rows
+        dplyr::mutate(location = ifelse(country == "Nicaragua", 
+                                 gsub(".*: ", "", location), location)) %>%
+        separate_rows(location, sep = ";") %>%        # separate multiple locations
+        dplyr::mutate(location = trimws(location)) %>%       # remove whitespace
+        # Map each location to correct GADM NAME_1
+        dplyr::mutate(location_subnational = case_when(
+          country == "United States of America" & grepl("California", location) ~ "California",
+          country == "United States of America" & grepl("Iowa", location)       ~ "Iowa",
+          country == "United States of America" & grepl("Hawaii", location)     ~ "Hawaii",
+          country == "United States of America" & grepl("Arkansas", location)   ~ "Arkansas",
+          country == "United States of America" & grepl("Arizona", location)    ~ "Arizona",
+          country == "China" & grepl("Zhejiang", location)                       ~ "Zhejiang",
+          country == "Philippines" & grepl("Balayan Bay", location)              ~ "Batangas",
+          country == "Mexico" & grepl("Yucatan", location, ignore.case = TRUE)  ~ "Yucatán",
+          country == "Nicaragua" & grepl("Jinotega", location, ignore.case = TRUE) ~ "Jinotega",
+          country == "Nicaragua" & grepl("Matagalpa", location, ignore.case = TRUE) ~ "Matagalpa",
+          country == "Nicaragua" & grepl("Nueva Segovia", location, ignore.case = TRUE) ~ "Nueva Segovia",
+          country == "Nicaragua" & grepl("Madriz", location, ignore.case = TRUE) ~ "Madriz",
+          country == "Nicaragua" & grepl("Estelí", location, ignore.case = TRUE) ~ "Estelí",
+          TRUE ~ location
+        )) %>%
+        
+        group_by(location) %>%
+        dplyr::mutate(
+          proj_number = row_number(),
+          total_projects = n(),
+          # Add country header only for the first project
+          country_header = ifelse(proj_number == 1,
+                                  paste0("<u><strong>", country, ": ", total_projects, 
+                                         ifelse(total_projects == 1, " subnational project", " subnational projects"),
+                                         "</strong></u><br><br>"),
+                                  "")) %>%
+        ungroup() %>%
+        
+        dplyr::mutate(
+          proj_popup = paste0(
+            country_header,               # appears only once per country
+            "<strong>", proj_number, ") ", project_name, ":</strong><br>",
+            "<strong>Location: </strong>", location_label, "<br>", 
+            "<em>Ecosystem(s): </em>", ecos_all, "<br>",
+            "<em>Instrument: </em>", finance_model3, "<br><br>"
+          )
+        )
+      
+      
+      # --- Aggregate frequencies per country / subregion ---
+      subnat_data <- inventory_subnat %>%
+        group_by(country, location_subnational) %>%
+        summarise(freq = n(), 
+                  proj_popup = paste(proj_popup, collapse = "<br><br>"),  # combine all project popups
+                  .groups = "drop")
+      
+      # --- Convert SpatVectors to sf if needed ---
+      subnat_shapes_all_sf <- sf::st_as_sf(subnat_shapes_all)
+      
+      # --- Filter polygons to only those present in subnat_data ---
+      subnat_shapes <- subnat_shapes_all_sf %>%
+        filter(NAME_1 %in% subnat_data$location_subnational & country %in% subnat_data$country) %>%
+        left_join(subnat_data, by = c("country", "NAME_1" = "location_subnational"))
+      
+      # --- Only keep freq > 0 ---
+      subnat_shapes <- subnat_shapes %>%
+        filter(freq > 0)
+      
+      # --- Create color palette for leaflet ---
+      # pal <-colorFactor(palette=c("orange", "grey", "darkred"), domain = c(1,2,3))
+      pal <-colorFactor(palette=c("#7BCCC4", "grey", "#08519c"), 
+                        domain = c(1,2,3))
+      
+      # --- Add polygons to leaflet map ---
+      m <- m %>%
+        addPolygons(
+          data = subnat_shapes,
+          fillColor = ~pal(freq),
+          color = "white", weight = 0.7, opacity = 1, fillOpacity = 0.7,
+          popup = ~proj_popup
+          #~cntnt
+          # ~paste0("<strong>", NAME_1, ", ", country, "</strong><br/>Projects: ", ifelse(is.na(freq), 0, freq))
+        ) %>%
+        clearControls() %>% # add existing legends
+        addLegend(pal = pal, values = subnat_shapes$freq, title = "Projects per region", 
+                  labels = c("1", "2", "3"))
+    }
+    
+    ## 1.4 Case 4: supranational (supranational polygons & global point) #####
+    # Or come up with another way to display regional & global projects
+    
+    #   # --- Prepare inventory_short ---
+    if (scale_choice == "supranational") {
+      
+      library(dplyr)
+      library(tidyr)
+      library(leaflet)
+      library(sf)
+      
+      # --- Prepare inventory_short ---
+      inventory_supra <- inventory_short %>%
+        filter(geographic_scale %in% c(
+          "regional (multiple countries on a continent)",
+          "cross-regional (multiple countries on different continents)",
+          "global"
+        )) %>%
+        # Split multiple countries into separate rows
+        separate_rows(country_list_regional_and_global_projects, sep = ";") %>%
+        dplyr::mutate(
+          country = trimws(country_list_regional_and_global_projects)
+        ) %>%
+        select(project_ID, project_name, country, ecos_all, finance_model3) %>%
+        arrange(country) %>%
+        group_by(country) %>%
+        dplyr::mutate(
+          proj_number = row_number(),
+          total_projects = n(),
+          country_header = ifelse(proj_number == 1,
+                                  paste0("<u><strong>", country, ": ", total_projects,
+                                         ifelse(total_projects == 1, " supranational project", " supranational projects"),
+                                         "</strong></u><br><br>"),
+                                  "")
+        ) %>%
+        ungroup() %>%
+        dplyr::mutate(
+          proj_popup = paste0(
+            country_header,
+            "<strong>", proj_number, ") ", project_name, ":</strong><br>",
+            "<em>Ecosystem(s): </em>", ecos_all, "<br>",
+            "<em>Instrument: </em>", finance_model3, "<br><br>"
+          )
+        )
+      
+      # --- Collapse all projects per country into a single string ---
+      popup_per_country <- inventory_supra %>%
+        group_by(country) %>%
+        summarise(cntnt = paste0(proj_popup, collapse = ""), .groups = "drop")
+      
+      # --- Count projects per country ---
+      project_counts <- inventory_supra %>%
+        group_by(country) %>%
+        summarise(freq = n(), .groups = "drop")
+      
+      # --- Join with world polygons ---
+      supra_data <- world %>%
+        left_join(project_counts, by = c("name" = "country")) %>%
+        left_join(popup_per_country, by = c("name" = "country")) %>%
+        dplyr::mutate(
+          freq = ifelse(is.na(freq) | freq == 0, NA, freq),
+          cntnt = ifelse(is.na(cntnt), "<em>No project</em>", cntnt)
+        )
+      
+      
+      # --- Only keep freq > 0 ---
+      supra_data <- supra_data %>%
+        filter(freq > 0)
+      
+      
+      # --- Define color palette ---
+      # pal <-colorFactor(palette=c("orange", "red"), domain = c(1,2))
+      pal <-colorFactor(palette=c("#7BCCC4", "#2B8CBE"), domain = c(1,2))
+      
+      # --- Add polygons to leaflet map ---
+      m <- m %>%
+        addPolygons(
+          data = supra_data,
+          fillColor = ~pal(freq),
+          color = "white", weight = 1, opacity = 1, fillOpacity = 0.7,
+          popup = ~cntnt
+          # ~paste0("<strong>", NAME_1, ", ", country, "</strong><br/>Projects: ", ifelse(is.na(freq), 0, freq))
+        ) %>%
+        addLegend(pal = pal, values = supra_data$freq, title = "Projects per country (regional/global)")
+    }
+    m
+  })
+  
+  # 2. Data ####
+  # Create data object to display table
+  # output$data <-DT::renderDataTable(datatable(
+  #   inventory_short[,c("cntnt", "authorYear", "title", "Project", "source","project_single", "latitude", "longitude")], filter = 'top',
+  #   colnames = c("Project ID", "Project Name", "Project Name with Location", "Country / Region","Geographic scale","Global region","Country", "Location", "Location details",
+  #                "Ecosystems (summary)", "Ecosystem groups"," Ecosystem groups (unique)",
+  #                "Terrestrial ecosystem","Freshwater ecosystem","Coastal/Marine ecosystem","Ecosystem unclear",
+  #                "NBS intervention","NBS details","Hazards (summary)","Meteo-hydrological hazards","Environmental hazards",
+  #                "Elements at risk","Finance model (Level 3, Lowercase)","Finance model (Level 3)","Finance model (Level 2)","Finance model (Level 1)","Finance model (Level 2, Single category)",
+  #                "Finance Model (Level 1, Single category)",
+  #                "Level of finance model","Level of risk reduction","Premium structure","Insurance type","Trigger mechanism","Trigger level","Finance model formula","Deductible",
+  #                "Societal challenges","Project status","Implementing parties","Parties financing NBS","Parties financing NBS (List)",
+  #                "Location label")
+  # ))
+  
+  # 3. Financial instruments ####
+  # Add Fig. description: 
+  # Title: Nature-positive climate risk transfer and financing instruments (CRTFI)
+  # Text: Nature-positive CRTFI by instrument category. The panel presents the distribution of nature-positive CRTFI (outer circle), categorized by instrument type (inner circle). The share of each instrument in the outer circle reflects its prevalence in the instrument category. 
+  # Multiple counts of the same project may occur if a project is described in multiple publications. Sample size: projects in academic publications (n = 104) and non-academic publications (n = 209). 
+  
+
+  output$instruments_sunburst <- renderPlotly({
+    sunburst_finance_count <-
+      plot_ly(
+        data = sunburstDF_inst,
+        ids = ~ids,
+        labels = ~labels,
+        parents = ~parents,
+        values = ~values,
+        type = 'sunburst',
+        branchvalues = 'total',
+        hoverinfo = 'text',
+        textinfo = 'label+percent parent', # Add the count to the textinfo by adding +value
+        hovertext = ~hoverinfo,
+        insidetextorientation = "radial",  # Adjust text orientation
+        marker = list(
+          colors = custom_colors_instruments  # Apply the custom color scale
+        )
+      )
+
+    sunburst_finance_count
+  })
+
+  # 4. Ecosystems ####
+  # Add Fig. description:
+  # Title: Ecosystem types by ecosystem category.
+  # Text: The panel illustrates the distribution of ecosystem types (outer circle), categorized by broader ecosystem categories (inner circle), that benefit from a nature-positive climate risk transfer and financing instrument (CRTFI) identified in the review.
+  # Each mentioned nature-positive financial instrument and the ecosystem that it supports are counted. Multiple counts per publication are possible. Additionally, the same project may be counted multiple times if it appears in multiple publications. Sample size: projects in academic publications (n = 104) and non-academic publications (n = 209).
+
+  # --- Example: Ecosystems sunburst ---
+  output$ecosystems_sunburst <- renderPlotly({
+
+    # assumes sunburstDF and custom_colors are defined in global.R or earlier in server.R
+    sunburst_ecos_perc <- plot_ly(
+      data = sunburstDF,
+      ids = ~ids,
+      labels = ~labels,
+      parents = ~parents,
+      values = ~values,
+      type = 'sunburst',
+      branchvalues = 'total',
+      hoverinfo = 'text',
+      textinfo = 'label+percent parent',
+      hovertext = ~hoverinfo,
+      insidetextorientation = "radial",
+      marker = list(colors = custom_colors_ecos)
+    )
+
+    sunburst_ecos_perc
+
+  })
+  
+  # 5. Figures  ####
+  #knitr::knit(file.path(getwd(), "figures.Rmd")) # Run Rmd file in separate script
+  # alternatively, use R script instead of Rmd and run the R script externally 
+  
+  # output$status <- renderText({"Finished loading the app."})
+  
+  
+  # 6. Close the function ####
+}
+# ) # only include if shinyServer is used in first row of server definition
+
+# Run the application 
+shinyApp(ui = ui, server = server, 
+         onStart=function()
+         {source("global.R")}
+)
