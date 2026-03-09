@@ -1,28 +1,23 @@
-# install & load packages
-packages <- c('leaflet', 'plotly', 'DT', 'readxl', 'data.table')
-
-## Function to install packages only if they are not already installed
-install_if_not_installed <- function(packages) {
-  for (package in packages) {
-    if (!require(package, character.only = TRUE, quietly = TRUE)) {
-      install.packages(package, dependencies = TRUE)
-      library(package, character.only = TRUE)
-    }
-  }
-}
-
-## Call the function with your list of packages
-install_if_not_installed(packages)
+# Load packages
+library(leaflet)
+library(plotly)
+library(DT)
+library(readxl)
+library(data.table)
+library(markdown)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(munsell)
 
 
 # Import data  ####
 
-# Set working directory for the app
-setwd("/Users/alina/R_Projects/Dashboards/NaturePositiveCRTFIs")
+# Set working directory for the app only if the app should be run locally
+# setwd("/Users/alina/R_Projects/Dashboards/NaturePositiveCRTFIs")
 
 # Path to Excel file
-# file_path <- "/Users/alina/R_Projects/Dashboards/NaturePositiveCRTFIs/Financing_NBS_for_climate_resilience_data_dashboard.xlsx"
-file_path <- file.path(getwd(), "Financing_NBS_for_climate_resilience_data_dashboard.xlsx")
+# file_path <- file.path(getwd(), "Financing_NBS_for_climate_resilience_data_dashboard.xlsx")
+file_path <- "Financing_NBS_for_climate_resilience_data_dashboard.xlsx"
 
 # Get all sheet names
 sheet_names <- excel_sheets(file_path)
@@ -37,22 +32,26 @@ data_list <- lapply(sheet_names, function(sheet) {
 # Assign sheet names as list names
 names(data_list) <- sheet_names
 
-#   Bibliography <- data_list$Bibliography
 inventory_short <- data_list$`Inventory short`
-#   inventory_long <- data_list$`Inventory long`
 data_combined_p <- data_list$data_for_analysis_projects
+
+# The following sheets included in the excel file were not used in the app: 
+#   Bibliography <- data_list$Bibliography
+#   inventory_long <- data_list$`Inventory long`
 #   data_for_analysis_acad <- data_list$data_for_analysis_acad
 #   data_for_analysis_grey <- data_list$data_for_analysis_grey
 
 
-# run ecosystems script
-source(file.path(getwd(), "ecosystems_sunburst.R"))
+# Run ecosystems script
+source("ecosystems_sunburst.R")
+# source(file.path(getwd(), "ecosystems_sunburst.R"))
 # source(file.path(here::here(), "NaturePositiveCRTFIs/ecosystems.R"))
 # knitr::knit(file.path(getwd(), "ecosystems_sunburst.Rmd")) # Run separate script
 
-# run instruments script
-source(file.path(getwd(), "instruments_sunburst.R"))
+# Run instruments script
+source("instruments_sunburst.R")
+# source(file.path(getwd(), "instruments_sunburst.R"))
 
-# run instruments script
+# Run instruments script
 # source(file.path(getwd(), "econ_appraisal.R"))
 

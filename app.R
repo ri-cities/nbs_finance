@@ -4,21 +4,25 @@
 # Find out more about building applications with Shiny here: https://shiny.posit.co/
 
 
-# install & load packages
-packages <- c('shiny')
+# # install & load packages
+# packages <- c('shiny')
+# 
+# ## Function to install packages only if they are not already installed
+# install_if_not_installed <- function(packages) {
+#   for (package in packages) {
+#     if (!require(package, character.only = TRUE, quietly = TRUE)) {
+#       install.packages(package, dependencies = TRUE)
+#       library(package, character.only = TRUE)
+#     }
+#   }
+# }
+# 
+# ## Call the function with your list of packages
+# install_if_not_installed(packages)
 
-## Function to install packages only if they are not already installed
-install_if_not_installed <- function(packages) {
-  for (package in packages) {
-    if (!require(package, character.only = TRUE, quietly = TRUE)) {
-      install.packages(package, dependencies = TRUE)
-      library(package, character.only = TRUE)
-    }
-  }
-}
+library(shiny)
 
-## Call the function with your list of packages
-install_if_not_installed(packages)
+source("global.R")
 
 # A. UI  ##################################################################
 # Define UI for application 
@@ -75,11 +79,17 @@ library(dplyr)
 
 
 # Get level-1 administrative boundaries (states/provinces)
-usa_adm1 <- geodata::gadm("USA", level = 1, path = tempdir()) |> sf::st_as_sf()
-china_adm1 <- geodata::gadm("CHN", level = 1, path = tempdir()) |> sf::st_as_sf()
-mexico_adm1 <- geodata::gadm("MEX", level = 1, path = tempdir()) |> sf::st_as_sf()
-nicaragua_adm1 <- geodata::gadm("NIC", level = 1, path = tempdir()) |> sf::st_as_sf()
-philippines_adm1 <- geodata::gadm("PHL", level = 1, path = tempdir()) |> sf::st_as_sf()
+# usa_adm1 <- geodata::gadm("USA", level = 1, path = tempdir()) |> sf::st_as_sf()
+# china_adm1 <- geodata::gadm("CHN", level = 1, path = tempdir()) |> sf::st_as_sf()
+# mexico_adm1 <- geodata::gadm("MEX", level = 1, path = tempdir()) |> sf::st_as_sf()
+# nicaragua_adm1 <- geodata::gadm("NIC", level = 1, path = tempdir()) |> sf::st_as_sf()
+# philippines_adm1 <- geodata::gadm("PHL", level = 1, path = tempdir()) |> sf::st_as_sf()
+
+usa_adm1 <- st_read("usa_adm1.gpkg")
+china_adm1 <- st_read("china_adm1.gpkg")
+mexico_adm1 <- st_read("mexico_adm1.gpkg")
+nicaragua_adm1 <- st_read("nicaragua_adm1.gpkg")
+philippines_adm1 <- st_read("philippines_adm1.gpkg")
 
 # Combine all
 subnat_shapes_all <- dplyr::bind_rows(
