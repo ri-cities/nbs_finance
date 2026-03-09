@@ -1,6 +1,3 @@
-## Additional note
-This folder comprises files revised by Alina when trying to troubleshoot the shinyapps.io deployment (unsuccessful so far)
-
 ## Motivation
 The shiny app serves to visualize the results of a systematic review on nature-positive climate risk financing and transfer instruments (CRTFIs). It presents a map with projects in the inventory of nature-positive CRTFIs, along with other visualizations. 
 
