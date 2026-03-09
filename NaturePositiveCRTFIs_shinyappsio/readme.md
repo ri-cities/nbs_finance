@@ -6,7 +6,7 @@ When using any data provided on this website, please cite both the data and the 
 Data: Bill-Weilandt, Alina; Lallemant, David; Chan Khim Sun, Vivien; Patel, Meherwan Rohinton; Hamel, Perrine, 2025, "Data for: Nature-positive climate risk transfer and financing instruments: A systematic review", https://doi.org/10.21979/N9/18FP0Y, DR-NTU (Data). 
 
 Paper: 
-Bill-Weilandt, Alina; Lallemant, David; Chan Khim Sun, Vivien; Patel, Meherwan Rohinton; Hamel, Perrine, 2025, Nature-positive climate risk transfer and financing instruments: A systematic review, Communications Earth and Environment.
+Bill-Weilandt, Alina; Lallemant, David; Chan Khim Sun, Vivien; Patel, Meherwan Rohinton; Hamel, Perrine, 2026, Nature-positive climate risk transfer and financing instruments: A systematic review, Communications Earth and Environment.
 
 
 ## License
